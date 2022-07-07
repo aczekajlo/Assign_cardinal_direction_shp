@@ -1,5 +1,32 @@
-cardinal_split_function <- function(buffers1,
-                                    buffers2,
+#Author: Agatha Czekajlo
+#Date: July 6,2022
+
+#Description: This script is to split a polygon into 4 parts corresponding with cardinal directions
+
+
+#############     load library      ########
+
+# install.packages(c("rgdal","tidyverse","sf","spatialEco))
+library(rgdal)
+library(tidyverse)
+library(sf)
+
+# install.packages(c("doParallel","doSNOW","foreach","snow"))
+library(doParallel)
+library(doSNOW)
+library(foreach)
+library(snow)
+
+#############     load spatial polygon + clean-up     ########
+
+polygon <- read_sf() # original polygon
+buffers = st_buffer(polygon, 10) # make extra-large buffer for rotating
+
+
+#############     create cardinal split function     ########
+
+cardinal_split_function <- function(polygon,
+                                    buffers,
                                     outfilename,
                                     plot = TRUE,
                                     cores = 5)
@@ -10,7 +37,7 @@ cardinal_split_function <- function(buffers1,
   
   #--- create progress text bar ---#
   
-  iterations <- nrow(buffers1)
+  iterations <- nrow(polygon)
   pb <- utils::txtProgressBar(max = iterations, style = 3)
   progress <- function(n) utils::setTxtProgressBar(pb, n)
   opts <- list(progress = progress)
@@ -19,9 +46,9 @@ cardinal_split_function <- function(buffers1,
   
   out_df <- foreach::foreach(i = 1:iterations, .combine = "rbind", .options.snow = opts, .packages = c("sf","dplyr")) %dopar% {
     
-    bldg_carindal_polys <-data.frame()
+    polygon_carindal_directions <-data.frame()
     
-    bid <- buffers1[i,]
+    bid <- buffers[i,] #use extra-large buffer to start
     
     poly_coords <- sf::st_coordinates(bid)
     
@@ -89,23 +116,23 @@ cardinal_split_function <- function(buffers1,
       st_sf() %>% # from sfc to sf
       st_set_crs(st_crs(bid))
     
-    bid17 <- buffers2[i,]
+    pid <- polygon[i,] #use original polygon
     
-    bid_N <- sf::st_intersection(bid17, N_box)
-    bid_E <- sf::st_intersection(bid17, E_box)
-    bid_S <- sf::st_intersection(bid17, S_box)
-    bid_W <- sf::st_intersection(bid17, W_box)
+    bid_N <- sf::st_intersection(pid, N_box)
+    bid_E <- sf::st_intersection(pid, E_box)
+    bid_S <- sf::st_intersection(pid, S_box)
+    bid_W <- sf::st_intersection(pid, W_box)
     
     ### apply cardinal label
-    bid_N$cardinal <- "North"
-    bid_E$cardinal <- "East"
-    bid_S$cardinal <- "South"
-    bid_W$cardinal <- "West"
+    pid_N$cardinal <- "North"
+    pid_E$cardinal <- "East"
+    pid_S$cardinal <- "South"
+    pid_W$cardinal <- "West"
     
-    bldg_carindal_polys <- rbind(bldg_carindal_polys, bid_N)
-    bldg_carindal_polys <- rbind(bldg_carindal_polys, bid_E)
-    bldg_carindal_polys <- rbind(bldg_carindal_polys, bid_S)
-    bldg_carindal_polys <- rbind(bldg_carindal_polys, bid_W)
+    polygon_carindal_directions <- rbind(polygon_carindal_directions, bid_N)
+    polygon_carindal_directions <- rbind(polygon_carindal_directions, bid_E)
+    polygon_carindal_directions <- rbind(polygon_carindal_directions, bid_S)
+    polygon_carindal_directions <- rbind(polygon_carindal_directions, bid_W)
     
   }
   
@@ -114,8 +141,12 @@ cardinal_split_function <- function(buffers1,
   #--- End parallel ---#
   snow::stopCluster(cl)
   
-  out_df <- out_df %>% dplyr::select(-UID)
-  
   write_sf(out_df, outfilename)
   
 }
+
+#############     run cardinal split function     ########
+
+cardinal_split_function(polygon = polygon,
+                        buffers = buffers,
+                        outfilename = paste0())
