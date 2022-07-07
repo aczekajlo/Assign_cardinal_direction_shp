@@ -1,6 +1,5 @@
 #Author: Agatha Czekajlo
 #Date: July 6, 2022
-
 #Description: This script is to split a polygon into 4 parts corresponding with cardinal directions
 
 
